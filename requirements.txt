@@ -1,0 +1,8 @@
+# Allows Python to connect to SQL Server using ODBC
+pyodbc
+
+# Allows Python to read environment variables from a .env file
+python-dotenv
+
+# OpenAI client library for working with AI models
+openai
