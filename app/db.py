@@ -154,3 +154,52 @@ def get_table_counts():
     print("[COUNTS-9] Connection closed.")
 
     return result
+
+
+def get_knowledge_base_articles():
+    print("[KB-1] Starting knowledge base query...")
+
+    conn = get_connection()
+    print("[KB-2] SQL Server connection opened.")
+
+    cursor = conn.cursor()
+    print("[KB-3] Cursor created.")
+
+    query = """
+        SELECT
+            KnowledgeID,
+            Title,
+            Category,
+            Content,
+            CreatedAt
+        FROM dbo.DBA_KnowledgeBase
+        ORDER BY KnowledgeID;
+    """
+
+    print("[KB-4] Executing knowledge base query...")
+    cursor.execute(query)
+    print("[KB-5] Query executed successfully.")
+
+    rows = cursor.fetchall()
+    print("[KB-6] Rows fetched successfully.")
+
+    result = []
+
+    for row in rows:
+        result.append({
+            "knowledge_id": row.KnowledgeID,
+            "title": row.Title,
+            "category": row.Category,
+            "content": row.Content,
+            "created_at": row.CreatedAt,
+        })
+
+    print("[KB-7] Result list created.")
+
+    cursor.close()
+    print("[KB-8] Cursor closed.")
+
+    conn.close()
+    print("[KB-9] Connection closed.")
+
+    return result
