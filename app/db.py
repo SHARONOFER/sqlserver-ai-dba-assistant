@@ -174,8 +174,8 @@ def get_knowledge_base_articles():
             Content,
             CreatedAt
         FROM dbo.DBA_KnowledgeBase
-        ORDER BY KnowledgeID;
-    """
+        ORDER BY KnowledgeID;    """
+
 
     print("[KB-4] Executing knowledge base query...")
     cursor.execute(query)
@@ -214,3 +214,80 @@ def vector_to_sql_json(vector):
 
     print("[VECTOR-2] Vector was converted to JSON text successfully.")
     return vector_json
+
+
+
+
+
+
+
+
+def save_knowledge_embedding(knowledge_id, embedding_model, embedding_vector):
+    print("[SAVE-EMBED-1] Starting knowledge embedding save process...")
+
+    embedding_json = vector_to_sql_json(embedding_vector)
+    print("[SAVE-EMBED-2] Embedding vector converted to SQL JSON text.")
+
+    conn = get_connection()
+    print("[SAVE-EMBED-3] SQL Server connection opened.")
+
+    cursor = conn.cursor()
+    print("[SAVE-EMBED-4] Cursor created.")
+
+    query = """
+        IF EXISTS (
+            SELECT 1
+            FROM dbo.DBA_KnowledgeBaseEmbeddings
+            WHERE KnowledgeID = ?
+              AND EmbeddingModel = ?
+        )
+        BEGIN
+            UPDATE dbo.DBA_KnowledgeBaseEmbeddings
+            SET Embedding = CAST(CAST(? AS NVARCHAR(MAX)) AS VECTOR(1536)),
+                CreatedAt = SYSDATETIME()
+            WHERE KnowledgeID = ?
+              AND EmbeddingModel = ?;
+        END
+        ELSE
+        BEGIN
+            INSERT INTO dbo.DBA_KnowledgeBaseEmbeddings
+            (
+                KnowledgeID,
+                EmbeddingModel,
+                Embedding
+            )
+            VALUES
+            (
+                ?,
+                ?,
+               CAST(CAST(? AS NVARCHAR(MAX)) AS VECTOR(1536))
+            );
+        END
+    """
+
+    print("[SAVE-EMBED-5] Executing insert/update embedding query...")
+
+    cursor.execute(
+        query,
+        knowledge_id,
+        embedding_model,
+        embedding_json,
+        knowledge_id,
+        embedding_model,
+        knowledge_id,
+        embedding_model,
+        embedding_json,
+    )
+
+    print("[SAVE-EMBED-6] Query executed successfully.")
+
+    conn.commit()
+    print("[SAVE-EMBED-7] Transaction committed.")
+
+    cursor.close()
+    print("[SAVE-EMBED-8] Cursor closed.")
+
+    conn.close()
+    print("[SAVE-EMBED-9] Connection closed.")
+
+    print("[SAVE-EMBED-10] Knowledge embedding saved successfully.")
