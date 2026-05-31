@@ -1,4 +1,5 @@
 import pyodbc
+import json
 
 from app.config import (
     SQL_SERVER,
@@ -203,3 +204,13 @@ def get_knowledge_base_articles():
     print("[KB-9] Connection closed.")
 
     return result
+
+
+
+def vector_to_sql_json(vector):
+    print("[VECTOR-1] Converting Python vector to SQL Server vector JSON text...")
+
+    vector_json = json.dumps(vector)
+
+    print("[VECTOR-2] Vector was converted to JSON text successfully.")
+    return vector_json
