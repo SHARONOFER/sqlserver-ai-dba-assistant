@@ -105,3 +105,52 @@ def test_connection():
 
     print("[21] Test result dictionary created.")
     return result
+
+
+def get_table_counts():
+    print("[COUNTS-1] Starting table counts query...")
+
+    conn = get_connection()
+    print("[COUNTS-2] SQL Server connection opened.")
+
+    cursor = conn.cursor()
+    print("[COUNTS-3] Cursor created.")
+
+    query = """
+        SELECT 'Customers' AS TableName, COUNT(*) AS RowCountValue FROM dbo.Customers
+        UNION ALL
+        SELECT 'Products' AS TableName, COUNT(*) AS RowCountValue FROM dbo.Products
+        UNION ALL
+        SELECT 'Orders' AS TableName, COUNT(*) AS RowCountValue FROM dbo.Orders
+        UNION ALL
+        SELECT 'OrderItems' AS TableName, COUNT(*) AS RowCountValue FROM dbo.OrderItems
+        UNION ALL
+        SELECT 'DBA_KnowledgeBase' AS TableName, COUNT(*) AS RowCountValue FROM dbo.DBA_KnowledgeBase
+        UNION ALL
+        SELECT 'AI_QuestionHistory' AS TableName, COUNT(*) AS RowCountValue FROM dbo.AI_QuestionHistory
+    """
+
+    print("[COUNTS-4] Executing table counts query...")
+    cursor.execute(query)
+    print("[COUNTS-5] Query executed successfully.")
+
+    rows = cursor.fetchall()
+    print("[COUNTS-6] Rows fetched successfully.")
+
+    result = []
+
+    for row in rows:
+        result.append({
+            "table_name": row.TableName,
+            "row_count": row.RowCountValue,
+        })
+
+    print("[COUNTS-7] Result list created.")
+
+    cursor.close()
+    print("[COUNTS-8] Cursor closed.")
+
+    conn.close()
+    print("[COUNTS-9] Connection closed.")
+
+    return result
