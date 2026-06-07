@@ -73,20 +73,20 @@ def build_dba_prompt_with_vector_search(user_question, top_n=3):
     print("[AGENT-VECTOR-1] Starting DBA prompt build with vector search...")
 
     print("[AGENT-VECTOR-2] Creating vector for user question...")
-    question_vector = create_local_embedding(user_question)
+    question_vector = create_local_embedding(user_question) 
 
     print("[AGENT-VECTOR-3] Converting question vector to SQL JSON...")
-    question_vector_json = vector_to_sql_json(question_vector)
+    question_vector_json = vector_to_sql_json(question_vector) 
 
     print("[AGENT-VECTOR-4] Loading relevant knowledge articles by vector search...")
-    relevant_articles = get_relevant_knowledge_articles_by_vector(
+    relevant_articles = get_relevant_knowledge_articles_by_vector     (
         question_vector_json=question_vector_json,
         top_n=top_n,
     )
 
     print(f"[AGENT-VECTOR-5] Loaded {len(relevant_articles)} relevant articles.")
 
-    knowledge_context = build_knowledge_context(relevant_articles)
+    knowledge_context = build_knowledge_context(relevant_articles) 
 
     print("[AGENT-VECTOR-6] Building final vector-based prompt...")
 
@@ -122,54 +122,31 @@ Important rules:
     return prompt
 
 
-def build_dba_prompt_with_vector_search(user_question, top_n=3):
-    print("[AGENT-VECTOR-1] Starting DBA prompt build with vector search...")
+def generate_mock_dba_answer(user_question, top_n=1):
+    print("[MOCK-ANSWER-1] Starting mock DBA answer generation...")
 
-    print("[AGENT-VECTOR-2] Creating vector for user question...")
-    question_vector = create_local_embedding(user_question)
-
-    print("[AGENT-VECTOR-3] Converting question vector to SQL JSON...")
-    question_vector_json = vector_to_sql_json(question_vector)
-
-    print("[AGENT-VECTOR-4] Loading relevant knowledge articles by vector search...")
-    relevant_articles = get_relevant_knowledge_articles_by_vector(
-        question_vector_json=question_vector_json,
+    print("[MOCK-ANSWER-2] Getting relevant knowledge using vector search...")
+    prompt = build_dba_prompt_with_vector_search(
+        user_question=user_question,
         top_n=top_n,
     )
 
-    print(f"[AGENT-VECTOR-5] Loaded {len(relevant_articles)} relevant articles.")
-
-    knowledge_context = build_knowledge_context(relevant_articles)
-
-    print("[AGENT-VECTOR-6] Building final vector-based prompt...")
-
-    prompt = f"""
-You are a senior SQL Server DBA assistant.
-
-Your task is to answer the user's question using only the relevant DBA knowledge base articles below.
+    answer = f"""
+MOCK DBA ANSWER
 
 User question:
 {user_question}
 
-Relevant DBA knowledge base articles:
-{knowledge_context}
+This is not a real AI response yet.
+At this stage, the system successfully:
+1. Received the user question
+2. Found relevant DBA knowledge using vector search
+3. Built a DBA prompt from the relevant knowledge
 
-Answer format:
-1. Short summary of the problem
-2. Most relevant knowledge base article used
-3. Possible root causes
-4. What to check first
-5. Recommended T-SQL queries
-6. Risk level
-7. Next recommended action
+The prompt that would be sent to the AI model is:
 
-Important rules:
-- Answer like a senior SQL Server DBA.
-- Be practical and operational.
-- Use only the relevant knowledge provided.
-- If the knowledge base is not enough, say what additional data is needed.
-- Do not invent server-specific facts that were not provided.
+{prompt}
 """
 
-    print("[AGENT-VECTOR-7] Vector-based prompt was built successfully.")
-    return prompt
+    print("[MOCK-ANSWER-3] Mock DBA answer generated successfully.")
+    return answer
