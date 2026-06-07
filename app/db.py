@@ -23,7 +23,10 @@ def build_connection_string():
     print(f"[5] SQL Database: {SQL_DATABASE}")
 
     if auth_mode == "sql":
-        print("[6] Building connection string for SQL Server Authentication...")
+        print("[6] Building connection string for SQL   " \
+        "" \
+        "" \
+        "  Server Authentication...")
         print(f"[7] SQL Username: {SQL_USERNAME}")
         print("[8] SQL Password: ******")
 
@@ -217,11 +220,6 @@ def vector_to_sql_json(vector):
 
 
 
-
-
-
-
-
 def save_knowledge_embedding(knowledge_id, embedding_model, embedding_vector):
     print("[SAVE-EMBED-1] Starting knowledge embedding save process...")
 
@@ -291,3 +289,61 @@ def save_knowledge_embedding(knowledge_id, embedding_model, embedding_vector):
     print("[SAVE-EMBED-9] Connection closed.")
 
     print("[SAVE-EMBED-10] Knowledge embedding saved successfully.")
+
+def get_relevant_knowledge_articles_by_vector(question_vector_json, top_n=3):
+    print("[VECTOR-SEARCH-1] Starting relevant knowledge vector search...")
+
+    conn = get_connection()
+    print("[VECTOR-SEARCH-2] SQL Server connection opened.")
+
+    cursor = conn.cursor()
+    print("[VECTOR-SEARCH-3] Cursor created.")
+
+    query = """
+        SELECT TOP (?)
+            kb.KnowledgeID,
+            kb.Title,
+            kb.Category,
+            kb.Content,
+            VECTOR_DISTANCE(
+                'cosine',
+                CAST(CAST(? AS NVARCHAR(MAX)) AS VECTOR(1536)),
+                e.Embedding
+            ) AS DistanceValue
+        FROM dbo.DBA_KnowledgeBaseEmbeddings e
+        JOIN dbo.DBA_KnowledgeBase kb
+            ON e.KnowledgeID = kb.KnowledgeID
+        WHERE e.EmbeddingModel = 'local-hash-v1'
+        ORDER BY DistanceValue ASC;
+    """
+
+    print("[VECTOR-SEARCH-4] Executing vector search query...")
+
+    cursor.execute(query, top_n, question_vector_json)
+
+    print("[VECTOR-SEARCH-5] Query executed successfully.")
+
+    rows = cursor.fetchall()
+    print("[VECTOR-SEARCH-6] Rows fetched successfully.")
+
+    result = []
+
+    for row in rows:
+        result.append({
+            "knowledge_id": row.KnowledgeID,
+            "title": row.Title,
+            "category": row.Category,
+            "content": row.Content,
+            "distance": row.DistanceValue,
+        })
+
+    print("[VECTOR-SEARCH-7] Result list created.")
+
+    cursor.close()
+    print("[VECTOR-SEARCH-8] Cursor closed.")
+
+    conn.close()
+    print("[VECTOR-SEARCH-9] Connection closed.")
+
+    return result
+
