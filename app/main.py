@@ -14,7 +14,7 @@ def main():
     print(f"Login Name:    {connection_result['login_name']}")
     print(f"System User:   {connection_result['system_user']}")
 
-    print("[MAIN-5] Starting table counts query...")
+    print("[MAIN-5] Starting table counts query...")   
     table_counts = get_table_counts()
 
     print("[MAIN-6] Table counts result:")
