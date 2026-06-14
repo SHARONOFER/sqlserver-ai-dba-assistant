@@ -1,4 +1,7 @@
 
+
+from app.ai_client import generate_ai_response
+
 from app.local_embedding import create_local_embedding
 from app.db import (
     get_knowledge_base_articles,
@@ -150,3 +153,40 @@ The prompt that would be sent to the AI model is:
 
     print("[MOCK-ANSWER-3] Mock DBA answer generated successfully.")
     return answer
+
+
+
+def generate_real_dba_answer(user_question, top_n=1):
+    print("[REAL-ANSWER-1] Starting real DBA answer generation...")
+
+    print("[REAL-ANSWER-2] Building vector-based DBA prompt...")
+    prompt = build_dba_prompt_with_vector_search(
+        user_question=user_question,
+        top_n=top_n,
+    )
+
+    print("[REAL-ANSWER-3] Sending prompt to Gemini AI...")
+    ai_answer = generate_ai_response(prompt)
+
+    print("[REAL-ANSWER-4] Real DBA answer received from Gemini.")
+    return ai_answer
+
+def generate_real_dba_answer(user_question, top_n=1):
+    print("[REAL-ANSWER-1] Starting real DBA answer generation...")
+
+    print("[REAL-ANSWER-2] Building vector-based DBA prompt...")
+    prompt = build_dba_prompt_with_vector_search(
+        user_question=user_question,
+        top_n=top_n,
+    )
+
+    print("[REAL-ANSWER-3] Sending prompt to Gemini AI...")
+    ai_answer = generate_ai_response(prompt)
+
+    print("\n========== PROMPT SENT TO GEMINI ==========")
+    print(prompt)
+    print("========== END PROMPT ==========\n")
+
+
+    print("[REAL-ANSWER-4] Real DBA answer received from Gemini.")
+    return ai_answer
