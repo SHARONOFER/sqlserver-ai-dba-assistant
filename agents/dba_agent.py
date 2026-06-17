@@ -1,4 +1,5 @@
 
+from app.dba_diagnostic_tools import get_top_cpu_procedures
 
 from app.ai_client import generate_ai_response
 
@@ -9,7 +10,7 @@ from app.db import (
     get_relevant_knowledge_articles_by_vector,
 )
 
-
+ 
 
 
 def build_knowledge_context(articles):
@@ -72,7 +73,7 @@ Important rules:
 
 
 
-def build_dba_prompt_with_vector_search(user_question, top_n=3):
+def build_dba_prompt_with_vector_search(user_question, top_n=1):
     print("[AGENT-VECTOR-1] Starting DBA prompt build with vector search...")
 
     print("[AGENT-VECTOR-2] Creating vector for user question...")
@@ -91,18 +92,35 @@ def build_dba_prompt_with_vector_search(user_question, top_n=3):
 
     knowledge_context = build_knowledge_context(relevant_articles) 
 
+    cpu_diagnostic_context = "CPU diagnostics were not executed."
+
+  
+    if should_run_cpu_diagnostics(user_question):
+        print("[AGENT-CPU-3] CPU question detected. Running CPU diagnostic tool...")
+        cpu_procedures = get_top_cpu_procedures(top_n=5)
+        cpu_diagnostic_context = build_cpu_diagnostic_context(cpu_procedures)
+    else:
+        print("[AGENT-CPU-4] CPU diagnostic tool was not needed.")
+
     print("[AGENT-VECTOR-6] Building final vector-based prompt...")
 
     prompt = f"""
 You are a senior SQL Server DBA assistant.
 
-Your task is to answer the user's question using only the relevant DBA knowledge base articles below.
+Your task is to answer the user's question using the relevant DBA knowledge base articles and the real SQL Server diagnostic data below.
 
 User question:
 {user_question}
 
+
 Relevant DBA knowledge base articles:
 {knowledge_context}
+
+Real SQL Server diagnostic data:
+{cpu_diagnostic_context}
+
+
+
 
 Answer format:
 1. Short summary of the problem
@@ -156,37 +174,74 @@ The prompt that would be sent to the AI model is:
 
 
 
+
+def build_cpu_diagnostic_context(cpu_procedures):
+    print("[AGENT-CPU-1] Building CPU diagnostic context...")
+
+    if not cpu_procedures:
+        return "No CPU diagnostic data was returned from SQL Server."
+
+    lines = []
+    for item in cpu_procedures:
+        if (
+            item["database_name"] is None
+            or item["schema_name"] is None
+            or item["procedure_name"] is None
+        ):
+            continue
+
+        lines.append(
+            f"Database: {item['database_name']}\n"
+            f"Schema: {item['schema_name']}\n"
+            f"Procedure: {item['procedure_name']}\n"
+            f"Execution count: {item['execution_count']}\n"
+            f"Total CPU ms: {item['total_cpu_ms']}\n"
+            f"Average CPU ms: {item['avg_cpu_ms']}\n"
+            f"Total elapsed ms: {item['total_elapsed_ms']}\n"
+            f"Last execution time: {item['last_execution_time']}\n"
+            f"Cached time: {item['cached_time']}\n"
+            "---"
+        )
+        
+
+    print("[AGENT-CPU-2] CPU diagnostic context was built successfully.")
+
+    return "\n".join(lines)
+
+
+
+def should_run_cpu_diagnostics(user_question):
+    question_lower = user_question.lower()
+
+    cpu_keywords = [
+        "cpu",
+        "high cpu",
+        "processor",
+        "slow server",
+        "performance"
+    ]
+
+    return any(keyword in question_lower for keyword in cpu_keywords)
+
+
+
+
 def generate_real_dba_answer(user_question, top_n=1):
     print("[REAL-ANSWER-1] Starting real DBA answer generation...")
 
     print("[REAL-ANSWER-2] Building vector-based DBA prompt...")
     prompt = build_dba_prompt_with_vector_search(
         user_question=user_question,
-        top_n=top_n,
+        top_n=top_n
     )
-
-    print("[REAL-ANSWER-3] Sending prompt to Gemini AI...")
-    ai_answer = generate_ai_response(prompt)
-
-    print("[REAL-ANSWER-4] Real DBA answer received from Gemini.")
-    return ai_answer
-
-def generate_real_dba_answer(user_question, top_n=1):
-    print("[REAL-ANSWER-1] Starting real DBA answer generation...")
-
-    print("[REAL-ANSWER-2] Building vector-based DBA prompt...")
-    prompt = build_dba_prompt_with_vector_search(
-        user_question=user_question,
-        top_n=top_n,
-    )
-
-    print("[REAL-ANSWER-3] Sending prompt to Gemini AI...")
-    ai_answer = generate_ai_response(prompt)
 
     print("\n========== PROMPT SENT TO GEMINI ==========")
     print(prompt)
     print("========== END PROMPT ==========\n")
 
+    print("[REAL-ANSWER-3] Sending prompt to Gemini AI...")
+    answer = generate_ai_response(prompt)
 
     print("[REAL-ANSWER-4] Real DBA answer received from Gemini.")
-    return ai_answer
+
+    return answer

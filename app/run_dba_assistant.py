@@ -9,7 +9,7 @@ def main():
 
     answer = generate_real_dba_answer(
         user_question=user_question,
-        top_n=1
+        top_n=3
     )
 
     print("\nAI DBA Answer:")
