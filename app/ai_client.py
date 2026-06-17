@@ -6,6 +6,10 @@ from app.config import GEMINI_API_KEY
 
 
 def generate_ai_response(prompt):
+    """
+    Sends the final DBA prompt to the Gemini LLM
+    and returns the AI-generated response text.
+    """
     print("[AI-1] Starting Gemini AI response generation...")
 
     if not GEMINI_API_KEY:

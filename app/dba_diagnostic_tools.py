@@ -1,6 +1,12 @@
 from app.db import get_connection
 
 def get_top_cpu_procedures(top_n=10):
+
+    """
+    Runs a read-only SQL Server DMV query that returns the stored procedures
+    with the highest CPU usage from the plan cache.
+    """
+
     print("[CPU-PROC-1] Starting Top CPU Procedures diagnostic tool...")
 
     query = """

@@ -211,6 +211,13 @@ def get_knowledge_base_articles():
 
 
 def vector_to_sql_json(vector):
+
+    """
+    Converts a Python embedding vector list into a JSON string.
+    SQL Server receives this JSON text and casts it into VECTOR(1536)
+    for vector distance comparison.
+    """
+    
     print("[VECTOR-1] Converting Python vector to SQL Server vector JSON text...")
 
     vector_json = json.dumps(vector)
@@ -291,6 +298,12 @@ def save_knowledge_embedding(knowledge_id, embedding_model, embedding_vector):
     print("[SAVE-EMBED-10] Knowledge embedding saved successfully.")
 
 def get_relevant_knowledge_articles_by_vector(question_vector_json, top_n=3):
+
+    """
+    Searches SQL Server for the most relevant knowledge base articles
+    by comparing the user's question vector against stored article vectors
+    using VECTOR_DISTANCE.
+    """
     print("[VECTOR-SEARCH-1] Starting relevant knowledge vector search...")
 
     conn = get_connection()

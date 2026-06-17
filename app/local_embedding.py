@@ -20,9 +20,19 @@ def tokenize_text(text):
 
 
 def create_local_embedding(text):
+
+    """
+    Creates a local 1536-dimensional embedding vector from input text.
+    This vector represents the text numerically so SQL Server can compare it
+    against stored knowledge base embeddings using vector search.
+    """
     print("[EMBED-3] Creating local embedding vector...")
 
     tokens = tokenize_text(text)
+    """
+    Splits input text into normalized lowercase tokens.
+    These tokens are later used to build the local embedding vector.
+    """
     vector = [0.0] * VECTOR_DIMENSIONS
 
     for token in tokens:

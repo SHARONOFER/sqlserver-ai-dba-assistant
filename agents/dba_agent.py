@@ -14,6 +14,12 @@ from app.db import (
 
 
 def build_knowledge_context(articles):
+
+    """
+    Converts knowledge base articles returned from SQL Server
+    into a readable text block that can be inserted into the LLM prompt.
+    """
+
     print("[AGENT-1] Building knowledge context from articles...")
 
     knowledge_text = ""
@@ -74,6 +80,14 @@ Important rules:
 
 
 def build_dba_prompt_with_vector_search(user_question, top_n=1):
+
+    """
+    Builds the main RAG prompt for the DBA assistant.
+    It converts the user question into a vector, retrieves relevant
+    knowledge base articles from SQL Server using vector search,
+    optionally runs CPU diagnostics, and returns the final prompt
+    that will be sent to the LLM.
+    """
     print("[AGENT-VECTOR-1] Starting DBA prompt build with vector search...")
 
     print("[AGENT-VECTOR-2] Creating vector for user question...")
@@ -96,6 +110,8 @@ def build_dba_prompt_with_vector_search(user_question, top_n=1):
 
   
     if should_run_cpu_diagnostics(user_question):
+
+    
         print("[AGENT-CPU-3] CPU question detected. Running CPU diagnostic tool...")
         cpu_procedures = get_top_cpu_procedures(top_n=5)
         cpu_diagnostic_context = build_cpu_diagnostic_context(cpu_procedures)
@@ -176,6 +192,11 @@ The prompt that would be sent to the AI model is:
 
 
 def build_cpu_diagnostic_context(cpu_procedures):
+     
+    """
+    Converts CPU diagnostic results from SQL Server into a readable text block
+    that can be inserted into the LLM prompt.
+    """
     print("[AGENT-CPU-1] Building CPU diagnostic context...")
 
     if not cpu_procedures:
@@ -211,6 +232,11 @@ def build_cpu_diagnostic_context(cpu_procedures):
 
 
 def should_run_cpu_diagnostics(user_question):
+
+    """
+    Checks whether the user's question is related to CPU or performance.
+    If it is, the agent will run the CPU diagnostic tool.
+    """
     question_lower = user_question.lower()
 
     cpu_keywords = [
@@ -227,6 +253,13 @@ def should_run_cpu_diagnostics(user_question):
 
 
 def generate_real_dba_answer(user_question, top_n=1):
+
+    """
+    Main agent function.
+    Builds a RAG-based DBA prompt, sends it to the LLM,
+    and returns the final real AI-generated DBA answer.
+    """
+
     print("[REAL-ANSWER-1] Starting real DBA answer generation...")
 
     print("[REAL-ANSWER-2] Building vector-based DBA prompt...")

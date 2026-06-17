@@ -2,6 +2,13 @@ from agents.dba_agent import generate_real_dba_answer
 
 
 def main():
+
+    """
+    Entry point of the DBA assistant application.
+    Reads the user's DBA question, sends it to the agent,
+    and prints the final AI-generated DBA answer.
+    """
+
     print("SQL Server AI DBA Assistant")
     print("---------------------------")
 
