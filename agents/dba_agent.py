@@ -1,8 +1,6 @@
 
 from app.tool_router import route_tools
 
-from app.dba_diagnostic_tools import get_top_cpu_procedures
-
 from app.ai_client import generate_ai_response
 
 from app.local_embedding import create_local_embedding
@@ -10,6 +8,11 @@ from app.db import (
     get_knowledge_base_articles,
     vector_to_sql_json,
     get_relevant_knowledge_articles_by_vector,
+)
+
+from app.dba_diagnostic_tools import (
+    get_top_cpu_procedures,
+    get_blocking_sessions,
 )
 
  
@@ -37,7 +40,38 @@ Content: {article['content']}
     print("[AGENT-2] Knowledge context was built successfully.")
     return knowledge_text
 
+def build_blocking_diagnostic_context(blocking_sessions):
+    """
+    Converts blocking session diagnostic results from SQL Server
+    into a readable text block that can be inserted into the LLM prompt.
+    """
 
+    if not blocking_sessions:
+        return "Blocking diagnostics were executed. No blocking sessions were found."
+
+    lines = ["Blocking diagnostics results:"]
+
+    for item in blocking_sessions:
+        lines.append(
+            f"""
+Blocked Session ID: {item['blocked_session_id']}
+Blocking Session ID: {item['blocking_session_id']}
+Database: {item['database_name']}
+Blocked Login: {item['blocked_login_name']}
+Blocked Host: {item['blocked_host_name']}
+Blocking Login: {item['blocking_login_name']}
+Blocking Host: {item['blocking_host_name']}
+Status: {item['status']}
+Command: {item['command']}
+Wait Type: {item['wait_type']}
+Wait Time ms: {item['wait_time_ms']}
+Wait Resource: {item['wait_resource']}
+Running Statement:
+{item['running_statement_text']}
+---"""
+        )
+
+    return "\n".join(lines)
 
 
 def build_dba_prompt_with_vector_search(user_question, top_n=1):
@@ -83,8 +117,10 @@ def build_dba_prompt_with_vector_search(user_question, top_n=1):
      diagnostic_context_parts.append("CPU diagnostics were not executed.")
 
     if "blocking_sessions" in selected_tools:
+     print("[AGENT-TOOL-3] Running Blocking Sessions diagnostic tool...")
+     blocking_sessions = get_blocking_sessions(top_n=20)
      diagnostic_context_parts.append(
-        "Blocking Sessions tool was selected but is not implemented yet."
+     build_blocking_diagnostic_context(blocking_sessions)
     )
 
     if "wait_stats" in selected_tools:
