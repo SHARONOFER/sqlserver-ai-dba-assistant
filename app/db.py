@@ -209,7 +209,6 @@ def get_knowledge_base_articles():
     return result
 
 
-
 def vector_to_sql_json(vector):
 
     """
