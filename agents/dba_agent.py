@@ -1,4 +1,6 @@
 
+from app.tool_router import route_tools
+
 from app.dba_diagnostic_tools import get_top_cpu_procedures
 
 from app.ai_client import generate_ai_response
@@ -65,22 +67,45 @@ def build_dba_prompt_with_vector_search(user_question, top_n=1):
 
     knowledge_context = build_knowledge_context(relevant_articles) 
 
-    cpu_diagnostic_context = "CPU diagnostics were not executed."
+    selected_tools = route_tools(user_question)
+    diagnostic_context_parts = []
 
-  
-    if should_run_cpu_diagnostics(user_question):
+    diagnostic_context_parts.append(
+    f"Selected diagnostic tools: {', '.join(selected_tools) if selected_tools else 'None'}"
+    )
 
-    
-        print("[AGENT-CPU-3] CPU question detected. Running CPU diagnostic tool...")
-        cpu_procedures = get_top_cpu_procedures(top_n=5)
-        cpu_diagnostic_context = build_cpu_diagnostic_context(cpu_procedures)
+    if "top_cpu_procedures" in selected_tools:
+     print("[AGENT-TOOL-1] Running Top CPU Procedures diagnostic tool...")
+     cpu_procedures = get_top_cpu_procedures(top_n=5)
+     diagnostic_context_parts.append(build_cpu_diagnostic_context(cpu_procedures))
     else:
-        print("[AGENT-CPU-4] CPU diagnostic tool was not needed.")
+     print("[AGENT-TOOL-2] Top CPU Procedures tool was not needed.")
+     diagnostic_context_parts.append("CPU diagnostics were not executed.")
+
+    if "blocking_sessions" in selected_tools:
+     diagnostic_context_parts.append(
+        "Blocking Sessions tool was selected but is not implemented yet."
+    )
+
+    if "wait_stats" in selected_tools:
+     diagnostic_context_parts.append(
+        "Wait Stats tool was selected but is not implemented yet."
+    )
+
+    if "long_running_queries" in selected_tools:
+     diagnostic_context_parts.append(
+        "Long Running Queries tool was selected but is not implemented yet."
+    )
+
+    diagnostic_context = "\n\n".join(diagnostic_context_parts)
+
+
+
 
     print("[AGENT-VECTOR-6] Building final vector-based prompt...")
 
     prompt = f"""
-You are a senior SQL Server DBA assistant.
+    You are a senior SQL Server DBA assistant.
 
 Your task is to answer the user's question using the relevant DBA knowledge base articles and the real SQL Server diagnostic data below.
 
@@ -92,7 +117,7 @@ Relevant DBA knowledge base articles:
 {knowledge_context}
 
 Real SQL Server diagnostic data:
-{cpu_diagnostic_context}
+{diagnostic_context}
 
 
 
@@ -115,8 +140,7 @@ Important rules:
 """
 
     print("[AGENT-VECTOR-7] Vector-based prompt was built successfully.")
-    return prompt
-
+    return prompt 
 
 def generate_mock_dba_answer(user_question, top_n=1):
     print("[MOCK-ANSWER-1] Starting mock DBA answer generation...")
