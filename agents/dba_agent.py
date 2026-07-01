@@ -8,6 +8,8 @@ from app.db import (
     get_knowledge_base_articles,
     vector_to_sql_json,
     get_relevant_knowledge_articles_by_vector,
+    save_diagnostic_run_history,
+ 
 )
 
 from app.dba_diagnostic_tools import (
@@ -15,7 +17,7 @@ from app.dba_diagnostic_tools import (
     get_blocking_sessions,
 )
 
- 
+
 
 
 def build_knowledge_context(articles):
@@ -74,7 +76,7 @@ Running Statement:
     return "\n".join(lines)
 
 
-def build_dba_prompt_with_vector_search(user_question, top_n=1):
+def build_dba_prompt_with_vector_search(user_question, top_n=1, include_metadata=False):
 
     """
     Builds the main RAG prompt for the DBA assistant.
@@ -176,39 +178,48 @@ Important rules:
 """
 
     print("[AGENT-VECTOR-7] Vector-based prompt was built successfully.")
-    return prompt 
+    
+    if include_metadata:
+        metadata = {
+            "selected_tools": ", ".join(selected_tools) if selected_tools else "None",
+            "knowledge_articles_used": knowledge_context,
+            "diagnostic_context": diagnostic_context,
+        }
 
-def generate_mock_dba_answer(user_question, top_n=1):
-    print("[MOCK-ANSWER-1] Starting mock DBA answer generation...")
+        return prompt, metadata
 
-    print("[MOCK-ANSWER-2] Getting relevant knowledge using vector search...")
-    prompt = build_dba_prompt_with_vector_search(
+    return prompt
+
+def generate_real_dba_answer(user_question, top_n=1):
+    """
+    Main agent function.
+    Builds a RAG-based DBA prompt, sends it to the LLM,
+    saves the diagnostic run history, and returns the final AI answer.
+    """
+
+    prompt, metadata = build_dba_prompt_with_vector_search(
         user_question=user_question,
         top_n=top_n,
+        include_metadata=True,
     )
 
-    answer = f"""
-MOCK DBA ANSWER
+    print("========== PROMPT SENT TO GEMINI ==========")
+    print(prompt)
+    print("==========================================")
 
-User question:
-{user_question}
+    answer = generate_ai_response(prompt)
+   
+    run_id = save_diagnostic_run_history(
+        user_question=user_question,
+        selected_tools=metadata["selected_tools"],
+        knowledge_articles_used=metadata["knowledge_articles_used"],
+        diagnostic_context=metadata["diagnostic_context"],
+        ai_answer=answer,
+    )
 
-This is not a real AI response yet.
-At this stage, the system successfully:
-1. Received the user question
-2. Found relevant DBA knowledge using vector search
-3. Built a DBA prompt from the relevant knowledge
+    print(f"[AGENT-HISTORY-1] Diagnostic run saved. RunID: {run_id}")
 
-The prompt that would be sent to the AI model is:
-
-{prompt}
-"""
-
-    print("[MOCK-ANSWER-3] Mock DBA answer generated successfully.")
     return answer
-
-
-
 
 def build_cpu_diagnostic_context(cpu_procedures):
      
@@ -269,31 +280,3 @@ def should_run_cpu_diagnostics(user_question):
     return any(keyword in question_lower for keyword in cpu_keywords)
 
 
-
-
-def generate_real_dba_answer(user_question, top_n=1):
-
-    """
-    Main agent function.
-    Builds a RAG-based DBA prompt, sends it to the LLM,
-    and returns the final real AI-generated DBA answer.
-    """
-
-    print("[REAL-ANSWER-1] Starting real DBA answer generation...")
-
-    print("[REAL-ANSWER-2] Building vector-based DBA prompt...")
-    prompt = build_dba_prompt_with_vector_search(
-        user_question=user_question,
-        top_n=top_n
-    )
-
-    print("\n========== PROMPT SENT TO GEMINI ==========")
-    print(prompt)
-    print("========== END PROMPT ==========\n")
-
-    print("[REAL-ANSWER-3] Sending prompt to Gemini AI...")
-    answer = generate_ai_response(prompt)
-
-    print("[REAL-ANSWER-4] Real DBA answer received from Gemini.")
-
-    return answer

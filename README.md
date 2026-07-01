@@ -259,12 +259,16 @@ This project demonstrates several important skills:
 
 ## Resume Summary
 
-Example resume description:
+Example resume description:       
 
 ```text
 Built an AI-powered SQL Server DBA Assistant using Python, SQL Server vector search, RAG, Gemini AI, and real-time DMV diagnostic tools. The assistant routes user questions to relevant DBA tools, retrieves internal troubleshooting knowledge, collects SQL Server evidence, and generates structured DBA recommendations.
 ```
+           
 
+
+
+             
 ---
 
 ## Current Status
@@ -272,10 +276,10 @@ Built an AI-powered SQL Server DBA Assistant using Python, SQL Server vector sea
 Implemented:
 
 * SQL Server connection layer
-* Knowledge Base retrieval
+* Knowledge Base retrieval 
 * Local embedding generation
 * SQL Server vector search
-* Gemini AI client
+* Gemini AI client 
 * DBA Agent prompt builder
 * Tool Router
 * Top CPU Stored Procedures diagnostic tool

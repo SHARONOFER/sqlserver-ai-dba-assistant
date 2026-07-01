@@ -22,6 +22,7 @@ def build_connection_string():
     print(f"[4] SQL Server: {SQL_SERVER}")
     print(f"[5] SQL Database: {SQL_DATABASE}")
 
+
     if auth_mode == "sql":
         print("[6] Building connection string for SQL   " \
         "" \
@@ -359,3 +360,65 @@ def get_relevant_knowledge_articles_by_vector(question_vector_json, top_n=3):
 
     return result
 
+
+def save_diagnostic_run_history(
+    user_question,
+    selected_tools,
+    knowledge_articles_used,
+    diagnostic_context,
+    ai_answer,
+):
+    """
+    Saves a DBA Assistant diagnostic run into SQL Server history table.
+
+    This allows the project to keep an audit trail of:
+    - The user question
+    - Selected diagnostic tools
+    - Knowledge Base articles used
+    - Diagnostic context
+    - Final AI answer
+    """
+
+    print("[HISTORY-1] Saving diagnostic run history...")
+
+    query = """
+    INSERT INTO dbo.AI_DiagnosticRunHistory
+    (
+        UserQuestion,
+        SelectedTools,
+        KnowledgeArticlesUsed,
+        DiagnosticContext,
+        AIAnswer
+    )
+    OUTPUT INSERTED.RunID
+    VALUES
+    (
+        ?,
+        ?,
+        ?,
+        ?,
+        ?
+    );
+    """
+
+    with get_connection() as conn:
+        print("[HISTORY-2] SQL Server connection opened.")
+
+        cursor = conn.cursor()
+        print("[HISTORY-3] Cursor created.")
+
+        cursor.execute(
+            query,
+            user_question,
+            selected_tools,
+            knowledge_articles_used,
+            diagnostic_context,
+            ai_answer,
+        )
+
+        run_id = cursor.fetchone()[0]
+
+        conn.commit()
+        print(f"[HISTORY-4] Diagnostic run history saved. RunID: {run_id}")
+
+    return run_id
