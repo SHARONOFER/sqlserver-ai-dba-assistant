@@ -6,3 +6,5 @@ python-dotenv
 
 # OpenAI client library for working with AI models
 openai
+
+google-genai

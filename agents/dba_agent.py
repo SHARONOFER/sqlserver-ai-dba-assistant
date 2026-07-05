@@ -1,7 +1,32 @@
-from app.db import get_knowledge_base_articles
+
+from app.tool_router import route_tools
+
+from app.ai_client import generate_ai_response
+
+from app.local_embedding import create_local_embedding
+from app.db import (
+    get_knowledge_base_articles,
+    vector_to_sql_json,
+    get_relevant_knowledge_articles_by_vector,
+    save_diagnostic_run_history,
+ 
+)
+
+from app.dba_diagnostic_tools import (
+    get_top_cpu_procedures,
+    get_blocking_sessions,
+)
+
+
 
 
 def build_knowledge_context(articles):
+
+    """
+    Converts knowledge base articles returned from SQL Server
+    into a readable text block that can be inserted into the LLM prompt.
+    """
+
     print("[AGENT-1] Building knowledge context from articles...")
 
     knowledge_text = ""
@@ -17,44 +42,241 @@ Content: {article['content']}
     print("[AGENT-2] Knowledge context was built successfully.")
     return knowledge_text
 
+def build_blocking_diagnostic_context(blocking_sessions):
+    """
+    Converts blocking session diagnostic results from SQL Server
+    into a readable text block that can be inserted into the LLM prompt.
+    """
 
-def build_dba_prompt(user_question):
-    print("[AGENT-3] Starting DBA prompt build process...")
+    if not blocking_sessions:
+        return "Blocking diagnostics were executed. No blocking sessions were found."
 
-    print("[AGENT-4] Loading knowledge base articles from SQL Server...")
-    articles = get_knowledge_base_articles()
+    lines = ["Blocking diagnostics results:"]
 
-    print(f"[AGENT-5] Loaded {len(articles)} knowledge base articles.")
+    for item in blocking_sessions:
+        lines.append(
+            f"""
+Blocked Session ID: {item['blocked_session_id']}
+Blocking Session ID: {item['blocking_session_id']}
+Database: {item['database_name']}
+Blocked Login: {item['blocked_login_name']}
+Blocked Host: {item['blocked_host_name']}
+Blocking Login: {item['blocking_login_name']}
+Blocking Host: {item['blocking_host_name']}
+Status: {item['status']}
+Command: {item['command']}
+Wait Type: {item['wait_type']}
+Wait Time ms: {item['wait_time_ms']}
+Wait Resource: {item['wait_resource']}
+Running Statement:
+{item['running_statement_text']}
+---"""
+        )
 
-    knowledge_context = build_knowledge_context(articles)
+    return "\n".join(lines)
 
-    print("[AGENT-6] Building final prompt...")
+
+def build_dba_prompt_with_vector_search(user_question, top_n=1, include_metadata=False):
+
+    """
+    Builds the main RAG prompt for the DBA assistant.
+    It converts the user question into a vector, retrieves relevant
+    knowledge base articles from SQL Server using vector search,
+    optionally runs CPU diagnostics, and returns the final prompt
+    that will be sent to the LLM.
+    """
+    print("[AGENT-VECTOR-1] Starting DBA prompt build with vector search...")
+
+    print("[AGENT-VECTOR-2] Creating vector for user question...")
+    question_vector = create_local_embedding(user_question) 
+
+    print("[AGENT-VECTOR-3] Converting question vector to SQL JSON...")
+    question_vector_json = vector_to_sql_json(question_vector) 
+
+    print("[AGENT-VECTOR-4] Loading relevant knowledge articles by vector search...")
+    relevant_articles = get_relevant_knowledge_articles_by_vector     (
+        question_vector_json=question_vector_json,
+        top_n=top_n,
+    )
+
+    print(f"[AGENT-VECTOR-5] Loaded {len(relevant_articles)} relevant articles.")
+
+    knowledge_context = build_knowledge_context(relevant_articles) 
+
+    selected_tools = route_tools(user_question)
+    diagnostic_context_parts = []
+
+    diagnostic_context_parts.append(
+    f"Selected diagnostic tools: {', '.join(selected_tools) if selected_tools else 'None'}"
+    )
+
+    if "top_cpu_procedures" in selected_tools:
+     print("[AGENT-TOOL-1] Running Top CPU Procedures diagnostic tool...")
+     cpu_procedures = get_top_cpu_procedures(top_n=5)
+     diagnostic_context_parts.append(build_cpu_diagnostic_context(cpu_procedures))
+    else:
+     print("[AGENT-TOOL-2] Top CPU Procedures tool was not needed.")
+     diagnostic_context_parts.append("CPU diagnostics were not executed.")
+
+    if "blocking_sessions" in selected_tools:
+     print("[AGENT-TOOL-3] Running Blocking Sessions diagnostic tool...")
+     blocking_sessions = get_blocking_sessions(top_n=20)
+     diagnostic_context_parts.append(
+     build_blocking_diagnostic_context(blocking_sessions)
+    )
+
+    if "wait_stats" in selected_tools:
+     diagnostic_context_parts.append(
+        "Wait Stats tool was selected but is not implemented yet."
+    )
+
+    if "long_running_queries" in selected_tools:
+     diagnostic_context_parts.append(
+        "Long Running Queries tool was selected but is not implemented yet."
+    )
+
+    diagnostic_context = "\n\n".join(diagnostic_context_parts)
+
+
+
+
+    print("[AGENT-VECTOR-6] Building final vector-based prompt...")
 
     prompt = f"""
-You are a senior SQL Server DBA assistant.
+    You are a senior SQL Server DBA assistant.
 
-Your task is to answer the user's question using the DBA knowledge base below.
+Your task is to answer the user's question using the relevant DBA knowledge base articles and the real SQL Server diagnostic data below.
 
 User question:
 {user_question}
 
-DBA knowledge base:
+
+Relevant DBA knowledge base articles:
 {knowledge_context}
+
+Real SQL Server diagnostic data:
+{diagnostic_context}
+
+
+
 
 Answer format:
 1. Short summary of the problem
-2. Possible root causes
-3. What to check first
-4. Recommended T-SQL queries
-5. Risk level
-6. Next recommended action
+2. Most relevant knowledge base article used
+3. Possible root causes
+4. What to check first
+5. Recommended T-SQL queries
+6. Risk level
+7. Next recommended action
 
 Important rules:
 - Answer like a senior SQL Server DBA.
 - Be practical and operational.
+- Use only the relevant knowledge provided.
 - If the knowledge base is not enough, say what additional data is needed.
 - Do not invent server-specific facts that were not provided.
 """
 
-    print("[AGENT-7] Prompt was built successfully.")
+    print("[AGENT-VECTOR-7] Vector-based prompt was built successfully.")
+    
+    if include_metadata:
+        metadata = {
+            "selected_tools": ", ".join(selected_tools) if selected_tools else "None",
+            "knowledge_articles_used": knowledge_context,
+            "diagnostic_context": diagnostic_context,
+        }
+
+        return prompt, metadata
+
     return prompt
+
+def generate_real_dba_answer(user_question, top_n=1):
+    """
+    Main agent function.
+    Builds a RAG-based DBA prompt, sends it to the LLM,
+    saves the diagnostic run history, and returns the final AI answer.
+    """
+
+    prompt, metadata = build_dba_prompt_with_vector_search(
+        user_question=user_question,
+        top_n=top_n,
+        include_metadata=True,
+    )
+
+    print("========== PROMPT SENT TO GEMINI ==========")
+    print(prompt)
+    print("==========================================")
+
+    answer = generate_ai_response(prompt)
+   
+    run_id = save_diagnostic_run_history(
+        user_question=user_question,
+        selected_tools=metadata["selected_tools"],
+        knowledge_articles_used=metadata["knowledge_articles_used"],
+        diagnostic_context=metadata["diagnostic_context"],
+        ai_answer=answer,
+    )
+
+    print(f"[AGENT-HISTORY-1] Diagnostic run saved. RunID: {run_id}")
+
+    return answer
+
+def build_cpu_diagnostic_context(cpu_procedures):
+     
+    """
+    Converts CPU diagnostic results from SQL Server into a readable text block
+    that can be inserted into the LLM prompt.
+    """
+    print("[AGENT-CPU-1] Building CPU diagnostic context...")
+
+    if not cpu_procedures:
+        return "No CPU diagnostic data was returned from SQL Server."
+
+    lines = []
+    for item in cpu_procedures:
+        if (
+            item["database_name"] is None
+            or item["schema_name"] is None
+            or item["procedure_name"] is None
+        ):
+            continue
+
+        lines.append(
+            f"Database: {item['database_name']}\n"
+            f"Schema: {item['schema_name']}\n"
+            f"Procedure: {item['procedure_name']}\n"
+            f"Execution count: {item['execution_count']}\n"
+            f"Total CPU ms: {item['total_cpu_ms']}\n"
+            f"Average CPU ms: {item['avg_cpu_ms']}\n"
+            f"Total elapsed ms: {item['total_elapsed_ms']}\n"
+            f"Last execution time: {item['last_execution_time']}\n"
+            f"Cached time: {item['cached_time']}\n"
+            "---"
+        )
+        
+
+    print("[AGENT-CPU-2] CPU diagnostic context was built successfully.")
+
+    return "\n".join(lines)
+
+
+
+def should_run_cpu_diagnostics(user_question):
+
+    """
+    Checks whether the user's question is related to CPU or performance.
+    If it is, the agent will run the CPU diagnostic tool.
+    """
+    question_lower = user_question.lower()
+
+    cpu_keywords = [
+        "cpu",
+        "high cpu",
+        "processor",
+        "slow server",
+        "performance"
+    ]
+
+    return any(keyword in question_lower for keyword in cpu_keywords)
+
+
